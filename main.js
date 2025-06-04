@@ -3,9 +3,8 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Octree } from "three/addons/math/Octree.js";
 import { Capsule } from "three/addons/math/Capsule.js";
-import { VRButton } from "three/addons/webxr/VRButton.js"; // IMPORTANTE: Importa VRButton
 
-// --- Audio with Howler.js ---
+//Audio with Howler.js
 const sounds = {
   backgroundMusic: new Howl({
     src: ["./sfx/music.ogg"],
@@ -34,6 +33,7 @@ const sounds = {
 };
 
 let touchHappened = false;
+
 let isMuted = false;
 
 function playSound(soundId) {
@@ -48,7 +48,7 @@ function stopSound(soundId) {
   }
 }
 
-// --- Three.js setup ---
+//three.js setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xaec972);
 const canvas = document.getElementById("experience-canvas");
@@ -82,6 +82,7 @@ let playerVelocity = new THREE.Vector3();
 let playerOnFloor = false;
 
 // Renderer Stuff
+// See: https://threejs.org/docs/?q=render#api/en/constants/Renderer
 const renderer = new THREE.WebGLRenderer({
   canvas: canvas,
   antialias: true,
@@ -94,10 +95,7 @@ renderer.shadowMap.enabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.7;
 
-// --- CONFIGURACIÓN PARA VR ---
-renderer.xr.enabled = true; // ¡HABILITAR EL RENDERIZADOR PARA WEBXR!
-
-// Algunos de nuestros elementos DOM, otros están dispersos en el archivo
+// Some of our DOM elements, others are scattered in the file
 let isModalOpen = false;
 const modal = document.querySelector(".modal");
 const modalbgOverlay = document.querySelector(".modal-bg-overlay");
@@ -115,9 +113,9 @@ const secondIcon = document.querySelector(".second-icon");
 
 const audioToggleButton = document.querySelector(".audio-toggle-button");
 const firstIconTwo = document.querySelector(".first-icon-two");
-const secondIconTwo = document(".second-icon-two");
+const secondIconTwo = document.querySelector(".second-icon-two");
 
-// Modal stuff (sin cambios, ya definido)
+// Modal stuff
 const modalContent = {
   Project_1: {
     title: "🍜Recipe Finder👩🏻‍🍳",
@@ -178,7 +176,7 @@ function hideModal() {
 
 // Our Intersecting objects
 const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2(); // Usado para mouse/touch
+const pointer = new THREE.Vector2();
 
 let intersectObject = "";
 const intersectObjects = [];
@@ -196,7 +194,8 @@ const intersectObjectsNames = [
   "Chest",
 ];
 
-// Loading screen and loading manager (sin cambios, ya definido)
+// Loading screen and loading manager
+// See: https://threejs.org/docs/#api/en/loaders/managers/LoadingManager
 const loadingScreen = document.getElementById("loadingScreen");
 const loadingText = document.querySelector(".loading-text");
 const enterButton = document.querySelector(".enter-button");
@@ -237,7 +236,10 @@ enterButton.addEventListener("click", () => {
   }
 });
 
-// GLTF Loader (sin cambios, ya definido)
+//Audio
+
+// GLTF Loader
+// See: https://threejs.org/docs/?q=glt#examples/en/loaders/GLTFLoader
 const loader = new GLTFLoader(manager);
 
 loader.load(
@@ -275,7 +277,9 @@ loader.load(
   }
 );
 
-// Lighting and Enviornment Stuff (sin cambios, ya definido)
+// Lighting and Enviornment Stuff
+// See: https://threejs.org/docs/?q=light#api/en/lights/DirectionalLight
+// See: https://threejs.org/docs/?q=light#api/en/lights/AmbientLight
 const sun = new THREE.DirectionalLight(0xffffff);
 sun.castShadow = true;
 sun.position.set(280, 200, -80);
@@ -290,52 +294,56 @@ sun.shadow.normalBias = 0.2;
 scene.add(sun.target);
 scene.add(sun);
 
+// const shadowCameraHelper = new THREE.CameraHelper(sun.shadow.camera);
+// scene.add(shadowCameraHelper);
+
+// const sunHelper = new THREE.CameraHelper(sun);
+// scene.add(sunHelper);
+
 const light = new THREE.AmbientLight(0x404040, 2.7);
 scene.add(light);
 
-// --- CÁMARA: CAMBIO CRÍTICO PARA VR ---
-// La cámara de Three.js para VR es de tipo PerspectiveCamera.
-// La posición y rotación son manejadas por el casco VR.
-// Mantendremos una cámara "normal" para el modo de escritorio,
-// pero el renderizador usará la cámara VR cuando la sesión esté activa.
-const camera = new THREE.PerspectiveCamera(
-  75,
-  sizes.width / sizes.height,
-  0.1,
+// Camera Stuff
+// See: https://threejs.org/docs/?q=orth#api/en/cameras/OrthographicCamera
+const aspect = sizes.width / sizes.height;
+const camera = new THREE.OrthographicCamera(
+  -aspect * 50,
+  aspect * 50,
+  50,
+  -50,
+  1,
   1000
 );
 
-// Posición inicial de la cámara en modo de escritorio.
-// En VR, esta posición será ignorada y reemplazada por la del casco.
-camera.position.set(
-  character.spawnPosition.x - 13, // Ajusta estas posiciones para que la vista inicial sea buena
-  character.spawnPosition.y + 39,
-  character.spawnPosition.z - 67
-);
-camera.lookAt(character.spawnPosition); // Que la cámara mire al punto de inicio del personaje
+camera.position.x = -13;
+camera.position.y = 39;
+camera.position.z = -67;
 
-// NO USAR OrthographicCamera en VR.
+const cameraOffset = new THREE.Vector3(-13, 39, -67);
 
-// Los OrbitControls son útiles para depuración en desktop, pero no para VR.
+camera.zoom = 2.2;
+camera.updateProjectionMatrix();
+
 const controls = new OrbitControls(camera, canvas);
 controls.update();
 
-// Handle when window resizes (modificado para WebXR)
+// Handle when window resizes
 function onResize() {
   sizes.width = window.innerWidth;
   sizes.height = window.innerHeight;
-
-  // Ajusta la cámara solo si no estamos en una sesión XR
-  if (!renderer.xr.isPresenting) {
-    camera.aspect = sizes.width / sizes.height;
-    camera.updateProjectionMatrix();
-  }
+  const aspect = sizes.width / sizes.height;
+  camera.left = -aspect * 50;
+  camera.right = aspect * 50;
+  camera.top = 50;
+  camera.bottom = -50;
+  camera.updateProjectionMatrix();
 
   renderer.setSize(sizes.width, sizes.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 }
 
-// Interact with Objects and Raycaster (sin cambios, ya definido)
+// Interact with Objects and Raycaster
+// See: https://threejs.org/docs/?q=raycas#api/en/core/Raycaster
 let isCharacterReady = true;
 
 function jumpCharacter(meshID) {
@@ -412,42 +420,17 @@ function jumpCharacter(meshID) {
   }
 }
 
-// Modificado para VR: El clic/interacción en VR será diferente
 function onClick() {
-    // Si estamos en VR, la interacción con el raycaster será diferente
-    if (renderer.xr.isPresenting) {
-        // En VR, las interacciones generalmente se manejan con controladores VR.
-        // Aquí podrías agregar lógica para un "clic" en VR si tu raycaster
-        // se actualiza en base a la dirección de la cabeza o de un controlador.
-        // Por ahora, dejamos este clic de navegador para el modo desktop.
-        // No se recomienda usar eventos de mouse directamente en VR.
-        return; // Ignora clics de mouse en modo VR
-    }
-    // Lógica existente para el modo de escritorio
-    if (touchHappened) return;
-    handleInteraction();
+  if (touchHappened) return;
+  handleInteraction();
 }
 
-// Modificado para VR: handleInteraction necesitará considerar la cámara VR
 function handleInteraction() {
   if (!modal.classList.contains("hidden")) {
     return;
   }
 
-  // Si estamos en VR, la raycaster debería basarse en la cámara VR o un controlador
-  if (renderer.xr.isPresenting) {
-    // Para VR, necesitas un raycaster que siga la mirada del usuario (headset)
-    // o un controlador de mano. Para una interacción simple de "mirar y activar",
-    // puedes usar la cámara VR.
-
-    // Obtener la pose de la cámara VR actual
-    const xrCamera = renderer.xr.getCamera(camera);
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), xrCamera); // El centro de la vista
-  } else {
-    // Modo de escritorio (mouse/touch)
-    raycaster.setFromCamera(pointer, camera);
-  }
-
+  raycaster.setFromCamera(pointer, camera);
   const intersects = raycaster.intersectObjects(intersectObjects);
 
   if (intersects.length > 0) {
@@ -485,20 +468,13 @@ function handleInteraction() {
   }
 }
 
-// onMouseMove, onTouchEnd, onKeyDown, onKeyUp, mobileControls:
-// Estos eventos de entrada de escritorio/móvil no se usarán directamente en VR.
-// Manténgalos para el modo 2D, pero considera cómo manejar el movimiento en VR.
-// Por ahora, en VR, tu personaje se quedará quieto hasta que implementes controles VR.
-
 function onMouseMove(event) {
-  if (renderer.xr.isPresenting) return; // Ignorar en VR
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
   touchHappened = false;
 }
 
 function onTouchEnd(event) {
-  if (renderer.xr.isPresenting) return; // Ignorar en VR
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
@@ -506,10 +482,7 @@ function onTouchEnd(event) {
   handleInteraction();
 }
 
-// Movement and Gameplay functions (estas funciones controlan el movimiento del personaje)
-// En VR, necesitarás una forma diferente de mover al personaje,
-// probablemente usando los controladores de VR (ej. teleportación o joysticks virtuales).
-// Por ahora, el personaje se quedará en su posición de spawn si no hay controles VR implementados.
+// Movement and Gameplay functions
 function respawnCharacter() {
   character.instance.position.copy(character.spawnPosition);
 
@@ -548,60 +521,32 @@ function updatePlayer() {
     return;
   }
 
-  // --- Movimiento del personaje para VR ---
-  // Si estamos en VR, la cámara del headset es el punto de vista del usuario.
-  // Queremos que el *personaje* se mueva, y la cámara VR se adjuntará al personaje.
-  // Esto requiere que el personaje sea un padre de la cámara, o que la cámara se mueva con el personaje.
-  // Para simplificar, haremos que el `character.instance` (tu personaje) sea la cámara raíz en VR.
-  // Esto significa que el personaje se moverá y la vista VR se moverá con él.
-
-  // En modo VR, la posición del character.instance se convertirá en la posición
-  // desde la cual se renderizará el mundo, es decir, será el "playerRig".
-  // Si no tienes un "playerRig" explícito, puedes mover la escena o el propio character.instance.
-
-  // Por ahora, el movimiento de la cápsula y la colisión se aplicará al character.instance.
-  // La cámara VR de Three.js (renderer.xr.getCamera(camera)) se moverá con el character.instance.
-  // Esto hará que el personaje sea el "cuerpo" del jugador en VR.
-
   if (!playerOnFloor) {
     playerVelocity.y -= GRAVITY * 0.035;
   }
 
-  // Aplica la velocidad a la cápsula del jugador
   playerCollider.translate(playerVelocity.clone().multiplyScalar(0.035));
 
   playerCollisions();
 
-  // Mueve la instancia del personaje a la posición de la cápsula
   character.instance.position.copy(playerCollider.start);
-  character.instance.position.y -= CAPSULE_RADIUS; // Ajuste para que el personaje esté sobre el suelo
+  character.instance.position.y -= CAPSULE_RADIUS;
 
-  // Rotación del personaje (solo si no estamos en VR, o si el movimiento es con joystick)
-  if (!renderer.xr.isPresenting) {
-    let rotationDiff =
-      ((((targetRotation - character.instance.rotation.y) % (2 * Math.PI)) +
-        3 * Math.PI) %
-        (2 * Math.PI)) -
-      Math.PI;
-    let finalRotation = character.instance.rotation.y + rotationDiff;
+  let rotationDiff =
+    ((((targetRotation - character.instance.rotation.y) % (2 * Math.PI)) +
+      3 * Math.PI) %
+      (2 * Math.PI)) -
+    Math.PI;
+  let finalRotation = character.instance.rotation.y + rotationDiff;
 
-    character.instance.rotation.y = THREE.MathUtils.lerp(
-      character.instance.rotation.y,
-      finalRotation,
-      0.4
-    );
-  } else {
-    // En VR, la rotación horizontal del personaje debería seguir la rotación del headset
-    // para evitar que el mundo gire de forma independiente de la cabeza del usuario.
-    // Opcionalmente, puedes permitir que el joystick gire el personaje.
-    // Por ahora, simplemente evita que el personaje gire automáticamente como en 2D.
-  }
+  character.instance.rotation.y = THREE.MathUtils.lerp(
+    character.instance.rotation.y,
+    finalRotation,
+    0.4
+  );
 }
 
-// onKeyDown y onKeyUp: Controlan el movimiento con teclado.
-// Estos eventos solo deben afectar el movimiento si NO estamos en VR.
 function onKeyDown(event) {
-  if (renderer.xr.isPresenting) return; // Ignorar en VR
   if (event.code.toLowerCase() === "keyr") {
     respawnCharacter();
     return;
@@ -628,7 +573,6 @@ function onKeyDown(event) {
 }
 
 function onKeyUp(event) {
-  if (renderer.xr.isPresenting) return; // Ignorar en VR
   switch (event.code.toLowerCase()) {
     case "keyw":
     case "arrowup":
@@ -649,7 +593,7 @@ function onKeyUp(event) {
   }
 }
 
-// Toggle Theme Function (sin cambios, ya definido)
+// Toggle Theme Function
 function toggleTheme() {
   if (!isMuted) {
     playSound("projectsSFX");
@@ -695,7 +639,7 @@ function toggleTheme() {
   });
 }
 
-// Toggle Audio Function (sin cambios, ya definido)
+// Toggle Audio Function
 function toggleAudio() {
   if (!isMuted) {
     playSound("projectsSFX");
@@ -713,7 +657,7 @@ function toggleAudio() {
   }
 }
 
-// Mobile controls (sin cambios, pero solo afectarán el modo desktop)
+// Mobile controls
 const mobileControls = {
   up: document.querySelector(".mobile-control.up-arrow"),
   left: document.querySelector(".mobile-control.left-arrow"),
@@ -769,14 +713,6 @@ function handleJumpAnimation() {
 }
 
 function handleContinuousMovement() {
-  // Solo permite movimiento con teclado/mobile si NO estamos en VR
-  if (renderer.xr.isPresenting) {
-    // Si estás en VR, aquí deberías manejar la entrada de los controladores VR
-    // para mover al personaje. Por ejemplo, usando `renderer.xr.getController(0)`
-    // y leyendo su `gamepad.axes` para joysticks.
-    return;
-  }
-
   if (!character.instance) return;
 
   if (
@@ -800,7 +736,7 @@ function handleContinuousMovement() {
     }
     if (pressedButtons.right) {
       playerVelocity.x -= MOVE_SPEED;
-      target.rotation = -Math.PI / 2;
+      targetRotation = -Math.PI / 2;
     }
 
     playerVelocity.y = JUMP_HEIGHT;
@@ -812,35 +748,29 @@ function handleContinuousMovement() {
 Object.entries(mobileControls).forEach(([direction, element]) => {
   element.addEventListener("touchstart", (e) => {
     e.preventDefault();
-    if (renderer.xr.isPresenting) return; // Ignorar en VR
     pressedButtons[direction] = true;
   });
 
   element.addEventListener("touchend", (e) => {
     e.preventDefault();
-    if (renderer.xr.isPresenting) return; // Ignorar en VR
     pressedButtons[direction] = false;
   });
 
   element.addEventListener("mousedown", (e) => {
     e.preventDefault();
-    if (renderer.xr.isPresenting) return; // Ignorar en VR
     pressedButtons[direction] = true;
   });
 
   element.addEventListener("mouseup", (e) => {
     e.preventDefault();
-    if (renderer.xr.isPresenting) return; // Ignorar en VR
     pressedButtons[direction] = false;
   });
 
   element.addEventListener("mouseleave", (e) => {
-    if (renderer.xr.isPresenting) return; // Ignorar en VR
     pressedButtons[direction] = false;
   });
 
   element.addEventListener("touchcancel", (e) => {
-    if (renderer.xr.isPresenting) return; // Ignorar en VR
     pressedButtons[direction] = false;
   });
 });
@@ -851,7 +781,7 @@ window.addEventListener("blur", () => {
   });
 });
 
-// Adding Event Listeners
+// Adding Event Listeners (tbh could make some of these just themselves rather than seperating them, oh well)
 modalExitButton.addEventListener("click", hideModal);
 modalbgOverlay.addEventListener("click", hideModal);
 themeToggleButton.addEventListener("click", toggleTheme);
@@ -863,65 +793,41 @@ window.addEventListener("touchend", onTouchEnd, { passive: false });
 window.addEventListener("keydown", onKeyDown);
 window.addEventListener("keyup", onKeyUp);
 
-// --- INICIALIZACIÓN DEL BOTÓN VR ---
-// Asegúrate de que el botón se cree DESPUÉS de que el renderer esté configurado
-document
-  .getElementById("vr-button-container")
-  .appendChild(VRButton.createButton(renderer));
-
-// --- Bucle de Animación para VR ---
-// Three.js se encargará de llamar a `animate` en el momento adecuado para VR.
+// Like our movie strip!!! Calls on each frame.
 function animate() {
   updatePlayer();
-  handleContinuousMovement(); // Esto ahora solo afecta el modo desktop
+  handleContinuousMovement();
 
-  // La lógica de la cámara cambia dependiendo si estamos en VR o no
-  if (!renderer.xr.isPresenting) {
-    // Lógica de cámara para modo de escritorio
-    if (character.instance) {
-      const targetCameraPosition = new THREE.Vector3(
-        character.instance.position.x + cameraOffset.x - 20,
-        cameraOffset.y,
-        character.instance.position.z + cameraOffset.z + 30
-      );
-      camera.position.copy(targetCameraPosition);
-      camera.lookAt(
-        character.instance.position.x + 10,
-        character.instance.position.y, // Ajustado para que mire al personaje
-        character.instance.position.z + 10
-      );
-    }
-  } else {
-    // Lógica para VR: La cámara del headset ya está siendo controlada por Three.js.
-    // Necesitas adjuntar la cámara al personaje o mover el personaje según el headset.
-    // Una forma común es que el `character.instance` sea el "rig" del jugador
-    // y el `renderer.xr.getCamera(camera)` esté dentro de ese rig.
-
-    // Si tu personaje (character.instance) se mueve en el mundo, la cámara VR
-    // automáticamente se moverá con él si está adjunta.
-    // Aquí, estamos moviendo el `character.instance` en `updatePlayer()`.
-    // La cámara VR de Three.js (la que está siendo renderizada) se moverá con este `character.instance`.
-    // Puedes también hacer que el `character.instance` rote con la rotación horizontal del headset.
-    // Esto es un punto crucial para futuros controles de movimiento VR.
+  if (character.instance) {
+    const targetCameraPosition = new THREE.Vector3(
+      character.instance.position.x + cameraOffset.x - 20,
+      cameraOffset.y,
+      character.instance.position.z + cameraOffset.z + 30
+    );
+    camera.position.copy(targetCameraPosition);
+    camera.lookAt(
+      character.instance.position.x + 10,
+      camera.position.y - 39,
+      character.instance.position.z + 10
+    );
   }
 
-  // El raycasting para interacción se llama en `handleInteraction()`
-  // La visualización del cursor del mouse solo debe ocurrir en el modo de escritorio
-  if (!renderer.xr.isPresenting) {
-    raycaster.setFromCamera(pointer, camera);
-    const intersects = raycaster.intersectObjects(intersectObjects);
+  raycaster.setFromCamera(pointer, camera);
 
-    if (intersects.length > 0) {
-      document.body.style.cursor = "pointer";
-    } else {
-      document.body.style.cursor = "default";
-      intersectObject = ""; // Restablecer cuando no hay intersecciones
-    }
+  const intersects = raycaster.intersectObjects(intersectObjects);
+
+  if (intersects.length > 0) {
+    document.body.style.cursor = "pointer";
   } else {
-    // En VR, no hay cursor de mouse. La retroalimentación de interacción sería visual (ej. un rayo láser desde el controlador)
-    document.body.style.cursor = "default"; // Asegúrate de que el cursor no esté como "pointer" en VR
+    document.body.style.cursor = "default";
+    intersectObject = "";
   }
+
+  for (let i = 0; i < intersects.length; i++) {
+    intersectObject = intersects[0].object.parent.name;
+  }
+
+  renderer.render(scene, camera);
 }
 
-// Este es el nuevo bucle de animación. ¡Reemplaza tu `renderer.setAnimationLoop(animate);`!
 renderer.setAnimationLoop(animate);
